@@ -4,9 +4,9 @@ import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.aui";
+} from "@/components/attachment.aui";
 import { File, getFileHref } from "@/components/file";
-import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
+import { ThreadFollowupSuggestions } from "@/components/follow-up-suggestions.aui";
 import { Image } from "@/components/image";
 import { MarkdownText } from "@/components/markdown-text";
 import {
@@ -15,13 +15,8 @@ import {
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/elements/reasoning.aui";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.aui";
+} from "@/components/reasoning.aui";
+import { ToolFallback } from "@/components/tool-fallback.aui";
 import { TooltipIconButton } from "@/components/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,34 +63,12 @@ import {
   useContext,
   useLayoutEffect,
   useRef,
-  useState,
   type ComponentType,
   type FC,
   type PropsWithChildren,
 } from "react";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
-
-const DefaultToolGroup: FC<PropsWithChildren<{ group: ThreadGroupPart }>> = ({
-  group,
-  children,
-}) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <ToolGroupRoot
-      variant="ghost"
-      open={open || group.counts.requiresAction > 0}
-      onOpenChange={setOpen}
-    >
-      <ToolGroupTrigger
-        count={group.indices.length}
-        active={group.status.type === "running"}
-      />
-      <ToolGroupContent>{children}</ToolGroupContent>
-    </ToolGroupRoot>
-  );
-};
 
 const shouldShowComposerResume = (s: AssistantState) =>
   !!s.thread.canResume && s.composer.type === "thread" && s.composer.isEmpty;
@@ -609,9 +582,9 @@ const AssistantMessage: FC = () => {
                 if (ToolGroup) {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
                 }
-                return (
-                  <DefaultToolGroup group={part}>{children}</DefaultToolGroup>
-                );
+                // Our tools (brochure, video) are the answer itself, so show
+                // their cards inline instead of inside a collapsed dropdown.
+                return <>{children}</>;
               case "group-reasoning": {
                 if (ReasoningGroup) {
                   return (

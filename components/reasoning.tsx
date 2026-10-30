@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
+import { useIsomorphicLayoutEffect } from "./useIsomorphicLayoutEffect";
 import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";

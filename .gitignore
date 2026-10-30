@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Turborepo
 .turbo
+
+# local dev notes
+docs/DEVLOG.md

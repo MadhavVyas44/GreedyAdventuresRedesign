@@ -160,6 +160,9 @@ const defaultComponents = memoizeMarkdownComponents({
         "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
         className,
       )}
+      // Open links in a new tab so leaving the page doesn't wipe the chat.
+      target="_blank"
+      rel="noopener noreferrer"
       {...props}
     />
   ),

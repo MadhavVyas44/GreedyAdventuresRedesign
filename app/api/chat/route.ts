@@ -1,43 +1,54 @@
-import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
-  type JSONSchema7,
-  streamText,
   convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
   type UIMessage,
 } from "ai";
+import { z } from "zod";
+import { prepareTurn } from "@/lib/chat/agent";
+import { tools } from "@/lib/chat/tools";
 
 export const maxDuration = 30;
 
-export async function POST(req: Request) {
-  const {
-    messages,
-    system,
-    tools,
-  }: {
-    messages: UIMessage[];
-    system?: string;
-    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
-  } = await req.json();
+// Only the shape we rely on is checked; message parts are checked by convertToModelMessages.
+const requestSchema = z.object({
+  messages: z
+    .array(
+      z.looseObject({
+        id: z.string(),
+        role: z.enum(["user", "assistant", "system"]),
+        parts: z.array(z.unknown()),
+      }),
+    )
+    .min(1)
+    .max(100),
+});
 
-  const aiSDKTools = { ...frontendTools(tools ?? {}) };
+export async function POST(req: Request) {
+  const body = requestSchema.safeParse(await req.json().catch(() => null));
+  if (!body.success) {
+    return Response.json({ error: "Invalid request body." }, { status: 400 });
+  }
+  // The server owns the instructions, so system messages from the browser are dropped.
+  const messages = (body.data.messages as UIMessage[]).filter(
+    (message) => message.role !== "system",
+  );
+
+  const { settings } = prepareTurn(messages);
   const result = streamText({
+    ...settings,
     abortSignal: req.signal,
-    model: openai.responses("gpt-6-luna"),
-    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
-    system,
-    tools: aiSDKTools,
-    providerOptions: {
-      openai: {
-        reasoningEffort: "low",
-        reasoningSummary: "auto",
-      },
-    },
+    messages: await convertToModelMessages(messages, { tools }),
   });
 
-  return result.toUIMessageStreamResponse({
-    sendReasoning: true,
-    onError: (error) =>
-      error instanceof Error ? error.message : String(error),
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      onError: (error) => {
+        console.error("chat error:", error);
+        return "Sorry, the assistant is unavailable right now. Please try again.";
+      },
+    }),
   });
 }
