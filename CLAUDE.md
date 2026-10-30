@@ -37,7 +37,8 @@ Prefer simple, readable code over clever code, and explain each change in plain 
   - Tools use `inputSchema: zodSchema(...)`, and `convertToModelMessages` is awaited.
   - If `system:` shows as deprecated, rename it to `instructions:`.
 - **Model:** Gemini via `@ai-sdk/google`.
-  - Env vars: `GOOGLE_GENERATIVE_AI_API_KEY` and `MODEL_ID`.
+  - Env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `MODEL_ID` (main model) and `FALLBACK_MODEL_IDS` (comma-separated backups, tried in order if a call fails; `lib/chat/fallback-model.ts`). `maxRetries: 0`, because a failure moves straight to the next model.
+  - Chosen 31 Oct: `gemini-3.1-flash-lite`, then `gemini-3.5-flash-lite`, then `gemini-3.5-flash`. Tested on the brief's questions; 3.1 Flash-Lite was fastest and most helpful. Not usable then: 3.8-flash (237 s reply), 3.7-flash / flash-latest (503 overloaded), 2.5-* (closed to new users).
   - Only Flash / Flash-Lite models are on the free tier. A non-free model returns 429, and the SDK retries before failing, so it fails slowly.
   - Free-tier Flash allowed only 20 requests/day per project (hit on 30 Oct). A brochure/video answer costs 2. Use the mock model (`MOCK_MODEL=true`) for repeated testing.
 - Local development: Windows + PowerShell. Cloud sessions run Linux, where paths are case-sensitive.
@@ -72,8 +73,8 @@ To do, roughly in order:
 ## Deployment
 
 - Vercel project `greedy-adventures-redesign-6axg` (team `madhavvyas44s-projects`), linked to this repo. Production URL: https://greedy-adventures-redesign-6axg.vercel.app (public). Every push to `main` deploys production; other branches get preview URLs, which need a Vercel login (default protection).
-- Env vars: `GOOGLE_GENERATIVE_AI_API_KEY` and `MODEL_ID` on Production + Preview. `MOCK_MODEL=true` on **Preview only**, so preview builds use the labelled mock and don't spend Gemini quota. Production uses the real model. Env changes need a redeploy.
-- Gemini quota: the free tier is 20 requests/day per Google project, shared by local dev and Vercel (same key). Google serves `gemini-3.5-flash` under the `gemini-3.6-flash` quota. On 31 Oct, production answered one real question before hitting the limit. Unless the user has enabled billing, expect production chat to fail some days. Test with the mock.
+- Env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `MODEL_ID` and `FALLBACK_MODEL_IDS` on Production + Preview. `MOCK_MODEL=true` on **Preview only**, so preview builds use the labelled mock and don't spend Gemini quota. Production uses the real model. Env changes need a redeploy.
+- Gemini quota: free-tier limits are per Google project **per model**, shared by local dev and Vercel (same key), and reset at midnight Pacific. `gemini-3.5-flash` hit 20/day (Google counts it as `gemini-3.6-flash`). Exact Flash-Lite limits are only visible in AI Studio. The backup models add capacity, but test with the mock anyway.
 - Check deployments and runtime logs with the Vercel MCP tools (project id `prj_nHzspDsju2qD8NtJ08HcYPttAiAh`).
 
 ## Target folder split

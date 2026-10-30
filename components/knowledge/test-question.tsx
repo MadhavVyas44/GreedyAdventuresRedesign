@@ -161,7 +161,7 @@ function TestResult({ result }: { result: TestTurnResult }) {
 
       {result.answer !== null && (
         <div>
-          <h3 className="font-medium">Answer ({result.modelName})</h3>
+          <h3 className="font-medium">Answer (from {result.answeredBy})</h3>
           <p className="mt-1 whitespace-pre-line rounded-md bg-muted p-3 text-sm">
             {result.answer || "(No text, only media.)"}
           </p>

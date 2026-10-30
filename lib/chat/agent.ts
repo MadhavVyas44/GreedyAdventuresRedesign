@@ -1,6 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { generateText, stepCountIs, type UIMessage } from "ai";
 import { selectSections, type SelectedSection } from "@/lib/knowledge/select";
+import { withFallbacks } from "./fallback-model";
 import { mockModel } from "./mock-model";
 import { buildSystemPrompt, searchQuery } from "./prompt";
 import { tools, type MediaToolResult } from "./tools";
@@ -8,7 +9,19 @@ import { tools, type MediaToolResult } from "./tools";
 // Set MOCK_MODEL=true to answer with the fixed-rule mock instead of Gemini.
 export const isMockMode = process.env.MOCK_MODEL === "true";
 
-export const modelName = isMockMode ? "mock model (demo)" : (process.env.MODEL_ID ?? "not set");
+// MODEL_ID is tried first, then each of FALLBACK_MODEL_IDS (comma-separated) in order.
+const modelIds = [
+  process.env.MODEL_ID,
+  ...(process.env.FALLBACK_MODEL_IDS ?? "").split(","),
+]
+  .map((id) => id?.trim())
+  .filter((id): id is string => Boolean(id));
+
+export const modelName = isMockMode
+  ? "mock model (demo)"
+  : modelIds.length > 1
+    ? `${modelIds[0]} (backups: ${modelIds.slice(1).join(", ")})`
+    : (modelIds[0] ?? "not set");
 
 // Everything one chat turn needs, built the same way for the chat and the
 // knowledge view, so the knowledge view shows exactly what the chat sends.
@@ -19,10 +32,14 @@ export function prepareTurn(messages: UIMessage[]) {
   return {
     selection,
     settings: {
-      model: isMockMode ? mockModel(selection) : google(process.env.MODEL_ID!),
+      model: isMockMode
+        ? mockModel(selection)
+        : withFallbacks(modelIds.map((id) => google(id))),
       instructions,
       tools,
-      maxRetries: 1,
+      // No retrying the same model: a failure moves straight to the next backup,
+      // which is faster than waiting on a model that's out of quota.
+      maxRetries: 0,
       stopWhen: stepCountIs(5),
     },
   };
@@ -37,6 +54,8 @@ export type TestTurnResult = {
   instructions: string;
   media: { tool: string; result: MediaToolResult }[];
   answer: string | null;
+  // Which model actually replied, so a switch to a backup is visible.
+  answeredBy: string | null;
   error: string | null;
 };
 
@@ -66,13 +85,17 @@ export async function runTestTurn(question: string): Promise<TestTurnResult> {
         result: toolResult.output as MediaToolResult,
       })),
     );
-    return { ...report, media, answer: result.text, error: null };
+    const answeredBy = [
+      ...new Set(result.steps.map((step) => step.response.modelId)),
+    ].join(", ");
+    return { ...report, media, answer: result.text, answeredBy, error: null };
   } catch (error) {
     console.error("knowledge test error:", error);
     return {
       ...report,
       media: [],
       answer: null,
+      answeredBy: null,
       error:
         "The model call failed (for example: quota used up or network error). The text that would have been sent is still shown.",
     };
