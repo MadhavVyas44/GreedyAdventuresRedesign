@@ -67,7 +67,14 @@ To do, roughly in order:
 - [x] Knowledge view at `/knowledge` (linked from the chat header, opens in a new tab). Test box posts to `/api/knowledge/test`, which runs `runTestTurn` in `lib/chat/agent.ts`: same `prepareTurn` as the chat. Nothing stored.
 - [ ] Redesign the hero and packages (see Design), then a responsive and keyboard pass.
 - [ ] README, verification steps, and repeatable tests with a labelled mock model.
-- [ ] Deploy to Vercel with env vars in BOTH Production and Preview.
+- [x] Deploy to Vercel with env vars in BOTH Production and Preview.
+
+## Deployment
+
+- Vercel project `greedy-adventures-redesign-6axg` (team `madhavvyas44s-projects`), linked to this repo. Production URL: https://greedy-adventures-redesign-6axg.vercel.app (public). Every push to `main` deploys production; other branches get preview URLs, which need a Vercel login (default protection).
+- Env vars: `GOOGLE_GENERATIVE_AI_API_KEY` and `MODEL_ID` on Production + Preview. `MOCK_MODEL=true` on **Preview only**, so preview builds use the labelled mock and don't spend Gemini quota. Production uses the real model. Env changes need a redeploy.
+- Gemini quota: the free tier is 20 requests/day per Google project, shared by local dev and Vercel (same key). Google serves `gemini-3.5-flash` under the `gemini-3.6-flash` quota. On 31 Oct, production answered one real question before hitting the limit. Unless the user has enabled billing, expect production chat to fail some days. Test with the mock.
+- Check deployments and runtime logs with the Vercel MCP tools (project id `prj_nHzspDsju2qD8NtJ08HcYPttAiAh`).
 
 ## Target folder split
 
